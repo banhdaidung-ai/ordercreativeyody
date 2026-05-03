@@ -1,0 +1,10 @@
+{
+  "projectId": "ordercreative",
+  "appId": "1:180934965507:web:0d32d12264091a0c651136",
+  "apiKey": "AIzaSyAlzRSDjUpBRlb2l2SchjJZCmUic79cTpI",
+  "authDomain": "ordercreative.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "ordercreative.firebasestorage.app",
+  "messagingSenderId": "180934965507",
+  "measurementId": ""
+}

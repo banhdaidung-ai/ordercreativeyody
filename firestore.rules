@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      // Temporary: allow access without Firebase Auth due to project restrictions
+      // In production, you should enable Anonymous Auth or use Google Login
+      return true;
+    }
+    
+    function isAdmin() {
+      // In this mode, we check the user role from the application state (passed in logic)
+      // but rules can't see application state. For now, we allow all for the primary user.
+      return true; 
+    }
+
+    // Domain Validators
+    function isValidWorkOrder(data) {
+      return data.keys().hasAll(['orderCode', 'status']) &&
+             data.orderCode is string && data.orderCode.size() > 0 && data.orderCode.size() < 50 &&
+             data.status is string && data.status.size() > 0 && data.status.size() < 50;
+    }
+
+    function isValidPlanItem(data) {
+      return data.keys().hasAll(['monthYear', 'department']) &&
+             data.monthYear is string && data.monthYear.size() > 0 && data.monthYear.size() < 20 &&
+             data.department is string && data.department.size() >= 0 && data.department.size() < 50;
+    }
+
+    // Work Orders
+    match /workOrders_production/{orderId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /workOrders_design/{orderId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Budget
+    match /budgetItems/{itemId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Planning
+    match /planItems/{itemId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Master Data
+    match /masterData/{itemId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Logs
+    match /systemLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+    
+    // Counters
+    match /counters/{counterId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

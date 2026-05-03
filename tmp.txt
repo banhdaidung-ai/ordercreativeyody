@@ -1,0 +1,8 @@
+538:  const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
+580:  const isAnyModalOpen = !!(selectedOrder || createOrderInitial || deleteModalData || costModalData || editingCell);
+1658:  // Sync selectedOrder with data changes to prevent modal from closing or showing stale data
+1660:    if (selectedOrder) {
+1661:      const latest = data.find(r => r.id === selectedOrder.id);
+1662:      if (latest && JSON.stringify(latest) !== JSON.stringify(selectedOrder)) {
+1666:  }, [data, selectedOrder]);
+1839:        {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => { console.log('Modal closing'); setSelectedOrder(null); }} onSave={!isLocked ? handleUpdateOrder : undefined} isOwner={isOwner} userRole={userRole} />}
