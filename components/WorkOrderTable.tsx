@@ -889,12 +889,17 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   }, [initialTabId, autoCreate]);
 
   useLayoutEffect(() => {
+      let rafId: number | null = null;
       const syncHeader = () => { if (headerRef.current && listOuterRef.current) { headerRef.current.scrollLeft = listOuterRef.current.scrollLeft; } };
+      // Throttle with rAF to prevent scroll jank (max once per frame)
+      const onScroll = () => {
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => { syncHeader(); rafId = null; });
+      };
       syncHeader();
-      requestAnimationFrame(syncHeader);
       const listEl = listOuterRef.current;
-      if (listEl) { listEl.addEventListener('scroll', syncHeader); }
-      return () => { if (listEl) listEl.removeEventListener('scroll', syncHeader); };
+      if (listEl) { listEl.addEventListener('scroll', onScroll, { passive: true }); }
+      return () => { if (listEl) listEl.removeEventListener('scroll', onScroll); if (rafId !== null) cancelAnimationFrame(rafId); };
   }, [viewMode, activeTab, data.length, zoomLevel]);
 
   const [filters, setFilters] = useState<Record<string, any>>(DEFAULT_FILTERS);
@@ -1062,9 +1067,16 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
                       return prevItem;
                   }
                   
-                  // If nothing changed, reuse reference for performance
-                  if (prevItem && JSON.stringify(prevItem) === JSON.stringify(item)) {
-                      return prevItem;
+                  // If nothing changed, reuse reference for performance (shallow compare, avoid JSON.stringify)
+                  if (prevItem) {
+                      let isSame = true;
+                      const keys = Object.keys(item);
+                      for (let i = 0; i < keys.length; i++) {
+                          const k = keys[i];
+                          if (k === 'historyLogs') continue; // Skip expensive array comparison
+                          if (prevItem[k as keyof WorkOrder] !== item[k as keyof WorkOrder]) { isSame = false; break; }
+                      }
+                      if (isSame) return prevItem;
                   }
                   
                   return item;
@@ -1095,7 +1107,8 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
                   }
               }
               
-              if (JSON.stringify(prev) === JSON.stringify(nextData)) return prev;
+              // Quick reference check instead of expensive JSON.stringify
+              if (prev.length === nextData.length && nextData.every((item, i) => item === prev[i])) return prev;
               return nextData;
           } else {
               // Load more scenario: Append new items only
@@ -1646,7 +1659,12 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
     // --------------------------------------
 
     const filtered = sorted.filter(row => {
-        if (filters.global) { const term = filters.global.toLowerCase(); const rowStr = Object.values(row).join(' ').toLowerCase(); if (!rowStr.includes(term)) return false; }
+        if (filters.global) { 
+            const term = filters.global.toLowerCase(); 
+            // Only search through displayable string fields (avoid serializing historyLogs/complex objects)
+            const searchFields = [row.orderCode, row.title, row.content, row.department, row.orderer, row.category, row.productType, row.classType, row.status, row.stylist, row.videoPerson, row.photoPerson, row.designer, row.trackingNote, row.productLink, row.platform].join(' ').toLowerCase();
+            if (!searchFields.includes(term)) return false; 
+        }
         for (const key of Object.keys(filters)) {
             if (key === 'global') continue;
             const filterValue = filters[key]; const rowValue = String(row[key as keyof WorkOrder] || '');
@@ -1945,17 +1963,21 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   useEffect(() => {
     if (selectedOrder) {
       const latest = data.find(r => r.id === selectedOrder.id);
-      if (latest && JSON.stringify(latest) !== JSON.stringify(selectedOrder)) {
+      // Use reference check instead of JSON.stringify for performance
+      if (latest && latest !== selectedOrder) {
         setSelectedOrder(latest);
       }
     }
   }, [data, selectedOrder]);
 
+  // Stable callback to prevent itemData reference change on every pendingUpdates change
+  const isRowPendingCb = useCallback((id: string) => pendingUpdatesRef.current.has(id), []);
+  
   const itemData = useMemo(() => ({ 
     items: groupedData, 
     columns: renderedColumns, 
     colWidths, 
-    isRowPending: (id: string) => pendingUpdatesRef.current.has(id), 
+    isRowPending: isRowPendingCb, 
     updateRow, 
     logChange, 
     handleDeleteClick, 
@@ -2191,7 +2213,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
                         itemData={itemData}
                         itemKey={(index, data) => data.items[index].id || index}
                         innerElementType={InnerElement}
-                        overscanCount={5}
+                        overscanCount={10}
                       >
                         {VirtualRow}
                       </List>
