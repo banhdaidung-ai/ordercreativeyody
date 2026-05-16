@@ -834,9 +834,8 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
     }
     if (statusType === 'LOCKED') return true;
     
-    // Member role is locked in AUTO mode
     if (statusType === 'AUTO') {
-        if (userRole === 'member') return true;
+        // Members should only be locked if it's NOT Thursday
         return !isThursdayVN;
     }
     
