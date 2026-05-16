@@ -1034,25 +1034,66 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
       
       setData(prev => {
           const prevDataMap = new Map<string, WorkOrder>(prev.map(item => [item.id, item]));
+          const currentPendingIds = pendingUpdatesRef.current;
           
           if (!isLoadMore) {
-              // Replace scenario: Keep references if content hasn't changed or if local has content while server is empty
+              // Step 1: Map over server data, but preserve local version for pending/editing rows
+              const serverIds = new Set<string>();
               const nextData = processedData.map(item => {
+                  serverIds.add(item.id);
                   const prevItem = prevDataMap.get(item.id);
-                  const isPending = pendingUpdatesRef.current.has(item.id);
+                  const isPending = currentPendingIds.has(item.id);
                   
-                  // Focus-based prevention: If this row is being edited, keep local version
-                  const isBeingEdited = editingCellRef.current && editingCellRef.current.id === item.id;
-                  
-                  // Critical Fix: If local has title/content but server is empty, keep local (likely Firestore indexing lag)
-                  const hasLocalContent = prevItem && (String(prevItem.title || '').trim() || String(prevItem.content || '').trim());
-                  const isServerEmpty = !String(item.title || '').trim() && !String(item.content || '').trim();
-                  
-                  if (prevItem && (isPending || isBeingEdited || (hasLocalContent && isServerEmpty) || JSON.stringify(prevItem) === JSON.stringify(item))) {
+                  // If this row has pending (unsaved) changes, ALWAYS keep local version
+                  if (isPending && prevItem) {
                       return prevItem;
                   }
+                  
+                  // If this row is being actively edited, keep local version
+                  const isBeingEdited = editingCellRef.current && editingCellRef.current.id === item.id;
+                  if (isBeingEdited && prevItem) {
+                      return prevItem;
+                  }
+                  
+                  // If local has content but server is empty (Firestore indexing lag), keep local
+                  const hasLocalContent = prevItem && (String(prevItem.title || '').trim() || String(prevItem.content || '').trim());
+                  const isServerEmpty = !String(item.title || '').trim() && !String(item.content || '').trim();
+                  if (hasLocalContent && isServerEmpty) {
+                      return prevItem;
+                  }
+                  
+                  // If nothing changed, reuse reference for performance
+                  if (prevItem && JSON.stringify(prevItem) === JSON.stringify(item)) {
+                      return prevItem;
+                  }
+                  
                   return item;
               });
+              
+              // Step 2: CRITICAL FIX — Re-append any pending rows that were NOT in the server response
+              // This happens when: user changes status to "Hoàn tất" (excluded by default filter),
+              // or when server query returns a subset that doesn't include the edited row.
+              if (currentPendingIds.size > 0) {
+                  for (const pendingId of currentPendingIds) {
+                      if (!serverIds.has(pendingId)) {
+                          const pendingRow = prevDataMap.get(pendingId);
+                          if (pendingRow && !isEmptyRow(pendingRow)) {
+                              nextData.unshift(pendingRow); // Keep it at top so user can see it
+                          }
+                      }
+                  }
+              }
+              
+              // Also preserve rows being actively edited that weren't in server response
+              if (editingCellRef.current) {
+                  const editingId = editingCellRef.current.id;
+                  if (!serverIds.has(editingId) && !currentPendingIds.has(editingId)) {
+                      const editingRow = prevDataMap.get(editingId);
+                      if (editingRow) {
+                          nextData.unshift(editingRow);
+                      }
+                  }
+              }
               
               if (JSON.stringify(prev) === JSON.stringify(nextData)) return prev;
               return nextData;
@@ -1084,6 +1125,31 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
          const prefix = isDesignTab ? 'Des' : 'Pro';
          setData([createEmptyRow(`${prefix}001`)]);
       }
+      
+      // Auto-cleanup stale draft orders (created > 10 min ago with no content)
+      if (!isLoadMore && !isSilent) {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const staleDrafts = processedData.filter(row => 
+          row.isDraft === true && 
+          !String(row.title || '').trim() && 
+          !String(row.content || '').trim() &&
+          !String(row.orderer || '').trim() &&
+          row.createdAt && row.createdAt < tenMinutesAgo
+        );
+        if (staleDrafts.length > 0) {
+          // Remove stale drafts in background (don't block UI)
+          staleDrafts.forEach(draft => {
+            deleteWorkOrder(draft.id, gid).catch(() => {});
+          });
+          setData(prev => {
+            const staleIds = new Set(staleDrafts.map(d => d.id));
+            const next = prev.filter(r => !staleIds.has(r.id));
+            dataRef.current = next;
+            return next;
+          });
+        }
+      }
+      
       if (!isSilent) { setToast({ type: 'success', message: 'Dữ liệu đã được đồng bộ mới nhất' }); }
     } catch (err: any) {
       console.error("Error in loadData:", err);
@@ -1204,12 +1270,13 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
 
   useEffect(() => {
       const interval = setInterval(() => {
-          if (!isSaving && !isSyncing && pendingUpdates.size === 0 && !isAnyModalOpen && document.visibilityState === 'visible') {
-              if (!isAnyModalOpen) loadData(activeTab, true, false, 10000);
+          // Use refs for up-to-date values (state in closures go stale)
+          if (!isSavingRef.current && pendingUpdatesRef.current.size === 0 && !isAnyModalOpen && document.visibilityState === 'visible') {
+              loadData(activeTab, true, false, 10000);
           }
       }, 300000); 
       return () => clearInterval(interval);
-  }, [activeTab, isSaving, isSyncing, pendingUpdates.size, isAnyModalOpen]);
+  }, [activeTab, isAnyModalOpen]);
 
   const getOptionsFromMaster = useCallback((key: string): string[] => {
       const dynamicOptions = masterData.filter(i => i.listKey === key).map(i => i.value);
@@ -1295,7 +1362,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
           debouncedSaveAll(tab);
         }
     }
-  }, 3000), [startSync, stopSync]);
+  }, 1500), [startSync, stopSync]);
 
 
   const updateRow = useCallback((id: string, field: keyof WorkOrder, value: any, shouldLog: boolean = false) => {
@@ -1352,7 +1419,14 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
 
     // Trigger debounced save for all pending (outside setData)
     if (field !== 'orderCode') {
-      debouncedSaveAll(activeTab);
+      // Critical dropdown fields: save immediately (user expects instant persistence)
+      const criticalFields = ['status', 'category', 'department', 'orderer', 'productType', 'classType', 'stylist', 'designer', 'videoPerson', 'photoPerson', 'platform', 'ctvStylist', 'ctvVideo', 'ctvPhoto'];
+      if (criticalFields.includes(field as string)) {
+        debouncedSaveAll(activeTab); // Queue the save
+        debouncedSaveAll.flush();    // Execute it immediately
+      } else {
+        debouncedSaveAll(activeTab);
+      }
     }
   }, [currentUser, isLocked, debouncedSaveAll, activeTab]);
 
