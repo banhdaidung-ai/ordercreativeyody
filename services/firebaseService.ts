@@ -212,10 +212,7 @@ export const fetchSheetData = async (
     try {
       const querySnapshot = await getDocs(q);
       
-      console.log(`Fetched ${querySnapshot.docs.length} docs from ${collectionName}`);
-      if (querySnapshot.docs.length > 0) {
-          console.log('Sample doc data:', querySnapshot.docs[0].data());
-      }
+
       
       const data = querySnapshot.docs.map(doc => fromFirestore(doc) as WorkOrder);
       const nextLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
@@ -345,10 +342,8 @@ export const fetchSystemUsers = async (): Promise<UserAccount[]> => {
   try {
     const q = query(collection(db, "masterData"), where("listKey", "==", "SYSTEM_USERS"));
     const querySnapshot = await getDocs(q);
-    console.log("System users snapshot size:", querySnapshot.size);
     return querySnapshot.docs.map(doc => {
       const item = doc.data();
-      console.log("User item:", item);
       const roleRaw = String(item.textColor || 'member').toLowerCase();
       let role: 'admin' | 'member' | 'collaborator' = 'member';
       if (roleRaw === 'admin') role = 'admin';
@@ -386,7 +381,7 @@ export const deleteMasterDataItem = async (id: string): Promise<void> => {
 
 // --- LOGS ---
 export const logActivity = async (action: string, target: string, details: string, module: string = 'GENERAL') => {
-  const user = localStorage.getItem('work_manager_user') || 'Unknown';
+  const user = localStorage.getItem('currentUser') || localStorage.getItem('currentUserName') || 'Unknown';
   const timestamp = new Date().toLocaleString('vi-VN');
   await addDoc(collection(db, "systemLogs"), {
     timestamp,

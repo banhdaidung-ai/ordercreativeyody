@@ -678,7 +678,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   const editingCellContextValue = useMemo(() => ({ editingCellData: editingCell, setEditingCell }), [editingCell, setEditingCell]);
   const editingCellRef = useRef<{ id: string, field: string } | null>(null);
   useEffect(() => { 
-    if (editingCell) console.log('editingCell changed:', editingCell);
+
     editingCellRef.current = editingCell; 
   }, [editingCell]);
 
@@ -932,11 +932,10 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   const loadData = async (gid: string, isSilent: boolean = false, isLoadMore: boolean = false, pageSize: number = 10000, filtersToUse = filtersRef.current) => {
     // Nếu đang chỉnh sửa, tuyệt đối không loadData để tránh ghi đè và nháy
     if (editingCellRef.current && !isLoadMore) {
-      console.log('loadData blocked: User is editing cell', editingCellRef.current);
       return;
     }
     
-    console.log('loadData called:', { gid, isSilent, isLoadMore });
+
     const CACHE_KEY = `WORK_ORDER_CACHE_${gid}`;
     
     // Chỉ lấy cache khi không phải là load thêm và không có thay đổi chưa lưu
@@ -1154,7 +1153,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
         const tabChanged = lastLoadedTabRef.current !== activeTab;
         
         if (filtersChanged || tabChanged) {
-          console.log('loadData triggered by filter/tab change:', { filtersChanged, tabChanged });
+
           loadData(activeTab, false, false);
         }
       }
@@ -1178,7 +1177,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
         lastLoadedViewSettingsRef.current.timeRange !== timeRange;
 
       if (settingsChanged) {
-        console.log('loadData triggered by view settings change');
+
         loadData(activeTab, false, false);
       }
     }
@@ -1300,17 +1299,17 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
 
 
   const updateRow = useCallback((id: string, field: keyof WorkOrder, value: any, shouldLog: boolean = false) => {
-    console.log('updateRow called', { id, field, value, isLocked });
+
     if (isLocked) return;
     const currentRow = dataRef.current.find(r => r.id === id);
     if (!currentRow) {
-        console.log('updateRow: currentRow not found', { id });
+
         return;
     }
     
     // Skip if value is the same
     if (String(currentRow[field] || '') === String(value || '')) {
-        console.log('updateRow: value is the same', { current: currentRow[field], value });
+
         return;
     }
 
@@ -1540,7 +1539,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
     if (userRole === 'collaborator') {
        const userEmail = (currentUser || '').toLowerCase().trim();
        const userName = (currentUserName || '').toLowerCase().trim();
-       console.log("Collaborator filter active:", { userName, userEmail, sortedCount: sorted.length });
+
        
        sorted = sorted.filter(row => {
            if (isEmptyRow(row)) return false; 
@@ -2038,7 +2037,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
         </div>
       </div>
       <div className="flex-1 overflow-hidden relative bg-white flex flex-col">
-        {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => { console.log('Modal closing'); setSelectedOrder(null); }} onSave={!isLocked ? handleUpdateOrder : undefined} isOwner={isOwner} userRole={userRole} />}
+        {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => { setSelectedOrder(null); }} onSave={!isLocked ? handleUpdateOrder : undefined} isOwner={isOwner} userRole={userRole} />}
         {createOrderInitial && (
           <CreateOrderModal 
             initialData={createOrderInitial} 

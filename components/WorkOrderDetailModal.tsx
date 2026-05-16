@@ -40,7 +40,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({ orde
   };
 
   const handleSave = () => {
-      console.log('handleSave called');
+      // Save the updated order
       if (onSave) {
           onSave(formData);
       }

@@ -105,7 +105,7 @@ function App() {
     const savedUser = localStorage.getItem('currentUser');
     const savedRole = localStorage.getItem('userRole');
     const savedName = localStorage.getItem('currentUserName');
-    console.log("Auto-login check:", savedUser, savedRole, savedName);
+
     
     if (savedUser && savedRole) {
         setIsAuthenticated(true);
@@ -154,12 +154,11 @@ function App() {
     setLoginError('');
     try {
         const users = await fetchSystemUsers();
-        console.log("Users:", users);
-        console.log("Input:", inputEmail.toLowerCase().trim(), inputPassword);
+
         const foundUser = users.find(u => u.email.trim().toLowerCase() === inputEmail.trim().toLowerCase() && u.password === inputPassword);
         
         if (foundUser) {
-            console.log("User found:", foundUser);
+
             
             setIsAuthenticated(true);
             setCurrentUser(foundUser.email);
@@ -170,7 +169,7 @@ function App() {
             localStorage.setItem('userRole', foundUser.role);
             setCurrentView('app');
         } else {
-            console.log("User not found");
+
             setLoginError('Email hoặc mật khẩu không chính xác.');
         }
     } catch (err: any) {
@@ -390,7 +389,7 @@ function App() {
                  </div>
              )}
              <div 
-
+                onClick={() => setShowChangePasswordModal(true)}
                 className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-full backdrop-blur-sm border border-white/20 cursor-pointer flex items-center gap-2 text-sm font-bold transition-all hover:scale-105"
                 title="Đổi mật khẩu"
              >
@@ -458,7 +457,7 @@ function App() {
                {isAdmin && (
                  <button onClick={() => setShowSettings(true)} className="p-2.5 bg-slate-800 text-white rounded-full shadow-lg shadow-slate-500/20 hover:bg-slate-700 hover:scale-110 transition-all flex items-center justify-center group" title="Cài đặt hệ thống"><Settings size={20} className="group-hover:rotate-90 transition-transform duration-500" /></button>
                )}
-               <button className="relative p-2 text-gray-500 hover:text-indigo-600 transition-colors"><Bell size={20} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span></button>
+               <button className="relative p-2 text-gray-500 hover:text-indigo-600 transition-colors" title="Thông báo (Sắp ra mắt)"><Bell size={20} /></button>
                <div className="relative" ref={userMenuRef}>
                    <div onClick={() => setShowUserMenu(!showUserMenu)} className={`h-10 pl-2 pr-4 rounded-full bg-gradient-to-tr flex items-center justify-center font-bold border border-white shadow-md cursor-pointer hover:shadow-lg transition-all gap-2 select-none ${isOwner ? 'from-slate-800 to-slate-600 text-white' : 'from-gray-50 to-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} title="Tài khoản cá nhân">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center ring-2 ring-white shadow-sm transition-colors ${isOwner ? 'bg-yellow-500 text-slate-900' : 'bg-indigo-100 text-indigo-600'}`}>{isOwner ? <ShieldCheck size={14}/> : <Mail size={14} />}</div>
