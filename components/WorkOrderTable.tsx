@@ -1084,7 +1084,9 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
               // Step 2: CRITICAL FIX — Re-append any pending rows that were NOT in the server response
               // This happens when: user changes status to "Hoàn tất" (excluded by default filter),
               // or when server query returns a subset that doesn't include the edited row.
-              if (currentPendingIds.size > 0) {
+              // GUARD: Chỉ re-append khi đang load cùng tab — tránh Design rows bị lẫn vào Production.
+              const isCurrentTab = gid === activeTab;
+              if (currentPendingIds.size > 0 && isCurrentTab) {
                   for (const pendingId of currentPendingIds) {
                       if (!serverIds.has(pendingId)) {
                           const pendingRow = prevDataMap.get(pendingId);
@@ -1096,7 +1098,8 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
               }
               
               // Also preserve rows being actively edited that weren't in server response
-              if (editingCellRef.current) {
+              // GUARD: Chỉ áp dụng khi đang load cùng tab
+              if (editingCellRef.current && isCurrentTab) {
                   const editingId = editingCellRef.current.id;
                   if (!serverIds.has(editingId) && !currentPendingIds.has(editingId)) {
                       const editingRow = prevDataMap.get(editingId);
@@ -2016,6 +2019,15 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
                     key={String(tab.id)} 
                     onClick={() => {
                         if (String(activeTab) !== String(tab.id)) {
+                            // FIX: Flush pending saves cho tab hiện tại trước khi chuyển tab
+                            // Tránh Design rows bị lẫn vào Production (và ngược lại)
+                            if (pendingUpdatesRef.current.size > 0) {
+                                debouncedSaveAll(activeTab);
+                                debouncedSaveAll.flush();
+                            }
+                            // Clear pending updates — data tab cũ đã được flush xong
+                            setPendingUpdates(new Set());
+                            pendingUpdatesRef.current = new Set();
                             setActiveTab(tab.id);
                         }
                     }} 
