@@ -336,7 +336,14 @@ export const fetchMasterData = async (): Promise<MasterDataItem[]> => {
     const q = query(collection(db, "masterData"), orderBy("order", "asc"));
     const querySnapshot = await getDocs(q);
     const firebaseData = querySnapshot.docs.map(doc => fromFirestore(doc) as MasterDataItem);
-    return [...DEFAULT_MASTER_DATA, ...firebaseData];
+    
+    // Tìm các listKey đã có dữ liệu cấu hình riêng trong Database
+    const dbKeys = new Set(firebaseData.map(i => i.listKey));
+    
+    // Chỉ bổ sung DEFAULT_MASTER_DATA cho các listKey chưa từng được người dùng tùy chỉnh
+    const fallbackDefaults = DEFAULT_MASTER_DATA.filter(i => !dbKeys.has(i.listKey));
+    
+    return [...fallbackDefaults, ...firebaseData];
   } catch (error) {
     return handleIndexError(error, "fetchMasterData");
   }

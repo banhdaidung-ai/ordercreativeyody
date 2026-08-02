@@ -356,8 +356,12 @@ export const fetchMasterData = async (): Promise<MasterDataItem[]> => {
             textColor: item['TextColor'],
             order: parseInt(item['Order'], 10) || 0,
             description: item['Description']
-        }));
-        return [...DEFAULT_MASTER_DATA, ...sheetMasterData];
+        })).filter((item: any) => item.listKey && item.value);
+
+        const dbKeys = new Set(sheetMasterData.map(i => i.listKey));
+        const fallbackDefaults = DEFAULT_MASTER_DATA.filter(i => !dbKeys.has(i.listKey));
+
+        return [...fallbackDefaults, ...sheetMasterData];
     } catch (e) { return DEFAULT_MASTER_DATA; }
 };
 

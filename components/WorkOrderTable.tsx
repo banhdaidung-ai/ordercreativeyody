@@ -1294,15 +1294,17 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   }, [activeTab, isAnyModalOpen]);
 
   const getOptionsFromMaster = useCallback((key: string): string[] => {
-      const dynamicOptions = masterData.filter(i => i.listKey === key).map(i => i.value);
-      const hardcodedOptions = HARDCODED_LISTS[key] || [];
+      const dynamicItems = masterData.filter(i => i.listKey === key && i.value !== '__EMPTY__');
+      const dynamicOptions = dynamicItems.map(i => i.value);
+      const hasCustomMaster = masterData.some(i => i.listKey === key);
+      const baseMasterOptions = hasCustomMaster ? dynamicOptions : (HARDCODED_LISTS[key] || []);
       
       // Lấy thêm các giá trị thực tế đang có trong bảng (bao gồm cả giá trị nhập tay không có trong danh mục)
       const rawValues = data.map(row => String(row[key as keyof WorkOrder] || '').trim());
       const hasEmpty = rawValues.some(v => v === '');
       const actualValues = rawValues.filter(val => val !== '');
       
-      let allOptions = Array.from(new Set([...hardcodedOptions, ...dynamicOptions, ...actualValues]));
+      let allOptions = Array.from(new Set([...baseMasterOptions, ...actualValues]));
       
       if (key === 'category') {
           if (isDesignTab) allOptions = allOptions.filter(opt => opt.trim().toLowerCase() === 'design' || opt.trim().toLowerCase() === 'animation');
@@ -1316,10 +1318,12 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
   }, [masterData, isDesignTab, data, filters]);
 
   const getConfigFromMaster = useCallback((key: string): MasterDataItem[] => {
-      const dynamicConfigs = masterData.filter(i => i.listKey === key);
+      const dynamicConfigs = masterData.filter(i => i.listKey === key && i.value !== '__EMPTY__');
+      if (masterData.some(i => i.listKey === key)) {
+          return dynamicConfigs;
+      }
       const hardcodedValues = HARDCODED_LISTS[key] || [];
-      const hardcodedConfigs: MasterDataItem[] = hardcodedValues.map((val, idx) => ({ id: `sys-${key}-${idx}`, listKey: key, value: val, isSystem: true }));
-      return [...hardcodedConfigs, ...dynamicConfigs];
+      return hardcodedValues.map((val, idx) => ({ id: `sys-${key}-${idx}`, listKey: key, value: val, isSystem: true }));
   }, [masterData]);
 
   const isSavingRef = useRef(false);
@@ -2166,6 +2170,8 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
             departmentOptions={getOptionsFromMaster('department')} 
             categoryOptions={getOptionsFromMaster('category')} 
             ordererOptions={getOptionsFromMaster('orderer')}
+            productTypeOptions={getOptionsFromMaster('productType')}
+            behaviorGroupOptions={getOptionsFromMaster('behaviorGroup')}
           />
         )}
         {costModalData && <CostBreakdownModal order={costModalData} onClose={() => setCostModalData(null)} onSave={handleCostChange} />}

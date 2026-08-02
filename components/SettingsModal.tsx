@@ -503,7 +503,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                     <tr><th className="p-3">Giá trị</th><th className="p-3">Mô tả</th><th className="p-3 text-right">Hành động</th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {Array.from(new Map<string, MasterDataItem>(masterData.filter(item => item.listKey === selectedListKey).map(item => [item.id, item])).values()).map((item, index) => (
+                                    {Array.from(new Map<string, MasterDataItem>(masterData.filter(item => item.listKey === selectedListKey && item.value !== '__EMPTY__').map(item => [item.id, item])).values()).map((item, index) => (
                                         <tr key={`${selectedListKey}-${item.id}-${index}`} className="hover:bg-indigo-50/50">
                                             <td className="p-3 font-medium text-indigo-900">{item.value}</td>
                                             <td className="p-3 text-gray-600">{item.description || '--'}</td>
@@ -516,9 +516,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                                         message: `Bạn có chắc chắn muốn xóa mục "${item.value}" khỏi danh mục ${selectedListKey} không?`,
                                                         type: 'danger',
                                                         onConfirm: async () => {
-                                                            await deleteMasterDataItem(item.id);
-                                                            loadMasterData();
-                                                            setConfirmModal(prev => ({ ...prev, show: false }));
+                                                            setIsSaving(true);
+                                                            try {
+                                                                const currentListItems = masterData.filter(i => i.listKey === selectedListKey && i.value !== '__EMPTY__');
+                                                                const remaining = currentListItems.filter(i => i.id !== item.id);
+                                                                
+                                                                if (item.isSystem || item.id.startsWith('hardcoded-') || item.id.startsWith('sys-')) {
+                                                                    for (let i = 0; i < remaining.length; i++) {
+                                                                        const rem = remaining[i];
+                                                                        const newId = rem.isSystem ? `${selectedListKey}-${Date.now()}-${i}` : rem.id;
+                                                                        await saveMasterDataItem({
+                                                                            id: newId,
+                                                                            listKey: selectedListKey,
+                                                                            value: rem.value,
+                                                                            description: rem.description || '',
+                                                                            order: i
+                                                                        });
+                                                                    }
+                                                                } else {
+                                                                    await deleteMasterDataItem(item.id);
+                                                                }
+
+                                                                if (remaining.length === 0) {
+                                                                    await saveMasterDataItem({
+                                                                        id: `empty-${selectedListKey}`,
+                                                                        listKey: selectedListKey,
+                                                                        value: '__EMPTY__',
+                                                                        description: 'Danh mục trống',
+                                                                        order: 0,
+                                                                        isSystem: false
+                                                                    });
+                                                                }
+
+                                                                await loadMasterData();
+                                                            } catch (e) {
+                                                                console.error("Lỗi khi xóa mục:", e);
+                                                            } finally {
+                                                                setIsSaving(false);
+                                                                setConfirmModal(prev => ({ ...prev, show: false }));
+                                                            }
                                                         }
                                                     });
                                                 }} className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg"><Trash2 size={14}/></button>
