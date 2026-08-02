@@ -198,6 +198,7 @@ export const fetchSheetData = async (
         costDetails: costDetails,
         classType: String(item['Phân loại'] || ''),
         productType: String(item['Cate hàng'] || ''),
+        behaviorGroup: String(item['Nhóm hành vi'] || ''),
         title: String(item['Tiêu đề nội dung'] || item['Tiêu đề'] || ''), 
         trackingNote: String(item['Ghi chú'] || ''),
         historyLogs: historyLogs
@@ -224,7 +225,7 @@ export const saveWorkOrder = async (order: WorkOrder, targetGid: string): Promis
     "Video": order.videoPerson, "Photo": order.photoPerson, "Người phụ trách": order.designer,
     "CTV Stylist": order.ctvStylist || "", "CTV Video": order.ctvVideo || "", "CTV Photo": order.ctvPhoto || "",
     "Chi phí dự kiến": order.estimatedCost, "Chi tiết chi phí": order.costDetails ? JSON.stringify(order.costDetails) : "", 
-    "Phân loại": order.classType, "Cate hàng": order.productType, "Lịch sử": JSON.stringify(order.historyLogs || [])
+    "Phân loại": order.classType, "Cate hàng": order.productType, "Nhóm hành vi": order.behaviorGroup || "", "Lịch sử": JSON.stringify(order.historyLogs || [])
   };
   await callScript({ action: 'save', gid: targetGid }, payload);
 };

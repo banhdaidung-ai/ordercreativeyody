@@ -1395,7 +1395,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
         return;
     }
 
-    const fieldNames: Record<string, string> = { title: 'Tiêu đề', content: 'Nội dung Brief', department: 'Phòng ban', startDate: 'Ngày Order', dueDate: 'Deadline', implementationDate: 'Ngày triển khai', status: 'Trạng thái', estimatedCost: 'Chi phí', category: 'Loại Order', productType: 'Cate Hàng', classType: 'Phân loại', productLink: 'Link SP', trackingNote: 'Ghi chú', orderer: 'Người order' };
+    const fieldNames: Record<string, string> = { title: 'Tiêu đề', content: 'Nội dung Brief', department: 'Phòng ban', startDate: 'Ngày Order', dueDate: 'Deadline', implementationDate: 'Ngày triển khai', status: 'Trạng thái', estimatedCost: 'Chi phí', category: 'Loại Order', productType: 'Cate Hàng', behaviorGroup: 'Nhóm hành vi', classType: 'Phân loại', productLink: 'Link SP', trackingNote: 'Ghi chú', orderer: 'Người order' };
     const label = fieldNames[field as string] || field;
     let displayValue = value;
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(value)) {
@@ -1846,6 +1846,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
     { id: 'title', label: 'Tiêu đề nội dung', defaultWidth: 200, filterType: 'text', isMultiline: true },
     { id: 'content', label: 'Brief (nội dung)', defaultWidth: 300, filterType: 'text', isRichText: true },
     { id: 'productType', label: 'CATE HÀNG', defaultWidth: 120, filterType: 'select', options: getOptionsFromMaster('productType') },
+    { id: 'behaviorGroup', label: 'Nhóm hành vi', defaultWidth: 140, filterType: 'select', options: getOptionsFromMaster('behaviorGroup') },
     { id: 'classType', label: 'Phân loại', defaultWidth: 120, filterType: 'select', options: getOptionsFromMaster('classType') },
     { id: 'startDate', label: 'Ngày Order', defaultWidth: 120, filterType: 'date' },
     { id: 'implementationDate', label: 'Ngày triển khai', defaultWidth: 130, filterType: 'date' },
@@ -1874,6 +1875,7 @@ export const WorkOrderTable: React.FC<WorkOrderTableProps> = ({ currentUser, cur
     { id: 'content', label: 'Brief (nội dung)', defaultWidth: 300, filterType: 'text', isRichText: true },
     { id: 'platform', label: 'Nền tảng', defaultWidth: 120, filterType: 'select', options: getOptionsFromMaster('platform') },
     { id: 'productType', label: 'CATE HÀNG', defaultWidth: 120, filterType: 'select', options: getOptionsFromMaster('productType') },
+    { id: 'behaviorGroup', label: 'Nhóm hành vi', defaultWidth: 140, filterType: 'select', options: getOptionsFromMaster('behaviorGroup') },
     { id: 'status', label: 'Trạng thái', defaultWidth: 100, filterType: 'select', options: getOptionsFromMaster('status') },
     { id: 'designer', label: 'Người phụ trách', defaultWidth: 130, filterType: 'select', options: getOptionsFromMaster('designer') },
     { id: 'startDate', label: 'Ngày Order', defaultWidth: 120, filterType: 'date' },

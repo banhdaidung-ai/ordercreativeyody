@@ -231,6 +231,25 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({ orde
                   )}
                 </div>
 
+                <div className="bento-card p-6 group hover:border-purple-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                      <Tag size={18}/>
+                    </div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nhóm hành vi</label>
+                  </div>
+                  {isEditing ? (
+                    <input 
+                      type="text" 
+                      value={formData.behaviorGroup || ''} 
+                      onChange={(e) => setFormData({...formData, behaviorGroup: e.target.value})}
+                      className="text-lg font-bold text-slate-800 w-full bg-transparent border-b border-slate-100 focus:border-purple-500 outline-none"
+                    />
+                  ) : (
+                    <div className="text-lg font-bold text-slate-800">{formData.behaviorGroup || '--'}</div>
+                  )}
+                </div>
+
                 <div className="bento-card p-6 group hover:border-indigo-200 transition-colors">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">

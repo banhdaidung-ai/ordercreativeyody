@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { WorkOrder, DEFAULT_ORDERERS, DEFAULT_PRODUCT_TYPES } from '../types';
+import { WorkOrder, DEFAULT_ORDERERS, DEFAULT_PRODUCT_TYPES, DEFAULT_BEHAVIOR_GROUPS } from '../types';
 import { X, Save, Sparkles, Bold, Italic, List, ListOrdered, Underline, Eraser, Palette, Link as LinkIcon, Check, Info } from 'lucide-react';
 import { SelectCell, DynamicListCell } from './TableCells';
 
@@ -12,6 +11,8 @@ interface CreateOrderModalProps {
   departmentOptions: string[];
   categoryOptions: string[];
   ordererOptions: string[];
+  productTypeOptions?: string[];
+  behaviorGroupOptions?: string[];
 }
 
 export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ 
@@ -20,7 +21,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   onSave, 
   departmentOptions, 
   categoryOptions,
-  ordererOptions
+  ordererOptions,
+  productTypeOptions,
+  behaviorGroupOptions
 }) => {
   const [formData, setFormData] = useState<WorkOrder>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -239,8 +242,8 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                </div>
             </div>
 
-            {/* Row 2: Category, Product Type, Deadline */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Row 2: Category, Product Type, Behavior Group, Deadline */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Thể loại</label>
                     <div className="h-12 bento-card p-0 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
@@ -259,9 +262,22 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                         <DynamicListCell 
                             value={formData.productType} 
                             onChange={(val) => handleChange('productType', val)}
-                            options={DEFAULT_PRODUCT_TYPES}
+                            options={productTypeOptions && productTypeOptions.length > 0 ? productTypeOptions : DEFAULT_PRODUCT_TYPES}
                             colorize={true}
                             placeholder="Chọn Cate..."
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Nhóm Hành Vi</label>
+                    <div className="h-12 bento-card p-0 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                        <DynamicListCell 
+                            value={formData.behaviorGroup || ''} 
+                            onChange={(val) => handleChange('behaviorGroup', val)}
+                            options={behaviorGroupOptions && behaviorGroupOptions.length > 0 ? behaviorGroupOptions : DEFAULT_BEHAVIOR_GROUPS}
+                            colorize={true}
+                            placeholder="Chọn hành vi..."
                         />
                     </div>
                 </div>

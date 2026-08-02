@@ -203,6 +203,10 @@ export const fetchSheetData = async (
       const values = filters.productType.map((v: any) => v === '(Trống)' ? '' : v);
       constraints.push(where('productType', 'in', values.slice(0, 10)));
     }
+    if (filters.behaviorGroup && filters.behaviorGroup.length > 0) {
+      const values = filters.behaviorGroup.map((v: any) => v === '(Trống)' ? '' : v);
+      constraints.push(where('behaviorGroup', 'in', values.slice(0, 10)));
+    }
     if (filters.classType && filters.classType.length > 0) {
       const values = filters.classType.map((v: any) => v === '(Trống)' ? '' : v);
       constraints.push(where('classType', 'in', values.slice(0, 10)));

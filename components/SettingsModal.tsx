@@ -456,7 +456,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 <div className="space-y-4">
                     <div className="flex justify-between items-center mb-4">
                         <select value={selectedListKey} onChange={(e) => { setSelectedListKey(e.target.value); setEditingMasterItem(null); setShowAddMasterItem(false); }} className="p-2 border rounded-lg text-xs font-bold">
-                            {['department', 'orderer', 'status', 'category', 'productType', 'classType', 'platform', 'stylist', 'videoPerson', 'photoPerson', 'designer'].map(key => <option key={key} value={key}>{key}</option>)}
+                            {[
+                              { key: 'department', label: 'department (Phòng ban)' },
+                              { key: 'orderer', label: 'orderer (Người order)' },
+                              { key: 'status', label: 'status (Trạng thái)' },
+                              { key: 'category', label: 'category (Loại Order)' },
+                              { key: 'productType', label: 'productType (Cate Hàng)' },
+                              { key: 'behaviorGroup', label: 'behaviorGroup (Nhóm hành vi)' },
+                              { key: 'classType', label: 'classType (Phân loại)' },
+                              { key: 'platform', label: 'platform (Nền tảng)' },
+                              { key: 'stylist', label: 'stylist (Stylist)' },
+                              { key: 'videoPerson', label: 'videoPerson (Video)' },
+                              { key: 'photoPerson', label: 'photoPerson (Photo)' },
+                              { key: 'designer', label: 'designer (Người phụ trách)' }
+                            ].map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
                         </select>
                         {!showAddMasterItem && !editingMasterItem && <button onClick={() => { setNewMasterItem({ value: '', description: '' }); setShowAddMasterItem(true); }} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 flex items-center gap-1"><Plus size={14}/> Thêm mục</button>}
                     </div>

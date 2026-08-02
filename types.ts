@@ -95,6 +95,9 @@ export const HARDCODED_LISTS: Record<string, string[]> = {
   productType: [
     "Polo", "Office", "Jeans Kaki", "Casual", "Kids", "Phụ kiện", "Áo khoác", "Len", "Thun", "Đồ lót"
   ],
+  behaviorGroup: [
+    "Thúc đẩy bán", "Nhận diện thương hiệu", "Tương tác", "Truyền thông sản phẩm mới", "Khác"
+  ],
   category: [
     "Hình ảnh", "Video", "Giả live", "Design", "Animation", "Khác"
   ],
@@ -109,6 +112,7 @@ export const HARDCODED_LISTS: Record<string, string[]> = {
 // Use hardcoded lists as defaults
 export const DEFAULT_ORDERERS = HARDCODED_LISTS.orderer;
 export const DEFAULT_PRODUCT_TYPES = HARDCODED_LISTS.productType;
+export const DEFAULT_BEHAVIOR_GROUPS = HARDCODED_LISTS.behaviorGroup;
 
 export interface ChangeLogEntry {
   timestamp: string;
@@ -152,6 +156,7 @@ export interface WorkOrder {
   title: string;         // Tiêu đề
   content: string;       // Brief (Nội dung)
   productType: string;   // CATE HÀNG
+  behaviorGroup?: string; // Nhóm hành vi (NEW)
   classType: string;     // Phân loại
   status: string;        // Trạng thái
   isConfirmed: boolean;  // Trạng thái CV/Check xác nhận
@@ -172,6 +177,7 @@ export interface WorkOrder {
   trackingNote: string;  // Ghi chú (Tracking)
   historyLogs?: ChangeLogEntry[]; // Lịch sử thay đổi
   isDraft?: boolean;     // Trạng thái nháp (đã đặt chỗ mã nhưng chưa lưu)
+  createdAt?: string;    // Thời gian tạo đơn
 }
 
 // --- BUDGET TRACKING INTERFACE ---
