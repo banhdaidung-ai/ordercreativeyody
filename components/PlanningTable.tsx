@@ -698,6 +698,13 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         return `${idx + 1}.`;
     };
 
+    const getDeptDisplayName = (dept: string) => {
+        if (dept === Department.MKT_ONLINE_NEVO || dept === 'MKT Online NEVO') {
+            return 'MKT ONLINE WEB';
+        }
+        return dept;
+    };
+
     return (
         <div className="flex flex-col h-screen bg-slate-50 relative">
             {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
@@ -846,7 +853,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                                                     return (
                                                         <tr key={dept} className="hover:bg-gray-50/50 transition-colors group">
                                                             <td className="p-4 pl-8">
-                                                                <span className="font-bold text-gray-700 text-sm">{dept}</span>
+                                                                <span className="font-bold text-gray-700 text-sm">{getDeptDisplayName(dept)}</span>
                                                             </td>
                                                             
                                                             {/* Total Column - Highlighted */}
@@ -906,7 +913,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                                                         <React.Fragment key={deptName}>
                                                             <tr className="bg-gray-50/50 font-bold border-y border-gray-200 text-gray-700">
                                                                 <td colSpan={2} className="p-3 pl-4 flex items-center gap-2 uppercase text-xs">
-                                                                    <Layers size={14} className="text-indigo-500"/> {deptName}
+                                                                    <Layers size={14} className="text-indigo-500"/> {getDeptDisplayName(deptName)}
                                                                 </td>
                                                                 <td className="p-2">
                                                                     <div className="flex flex-col items-center justify-center">
@@ -1033,7 +1040,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                                                         <div className={`flex items-center justify-between ${isOMNIChild ? 'pl-8' : 'pl-2'}`}>
                                                             <span className="flex items-center gap-2">
                                                                 {isOMNIChild && <ChevronRight size={14} className="text-indigo-400" />}
-                                                                {getDeptNumbering(dept)} {dept}
+                                                                {getDeptNumbering(dept)} {getDeptDisplayName(dept)}
                                                             </span>
                                                             <div className="flex gap-4 text-[10px] font-normal normal-case">
                                                                 <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isOMNIParent ? 'bg-slate-700 text-white border-slate-600' : 'bg-purple-100 text-purple-700 border-purple-200'}`}>Thực tế: {group.totalActual}</span>
@@ -1119,7 +1126,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                                                         <span className="flex items-center gap-2 cursor-pointer" onClick={() => isParent && toggleGroup(dept)}>
                                                             {isParent && (expandedGroups[dept] ? <ChevronRight size={14} className="rotate-90 transition-transform" /> : <ChevronRight size={14} className="transition-transform" />)}
                                                             {isChild && <ChevronRight size={14} className="text-indigo-400" />}
-                                                            {getDeptNumbering(dept)} {dept}
+                                                            {getDeptNumbering(dept)} {getDeptDisplayName(dept)}
                                                         </span>
                                                         <div className="flex gap-4 text-[10px] font-normal normal-case">
                                                             <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isParent ? 'bg-indigo-900 text-indigo-100 border-indigo-800' : 'bg-indigo-100 text-indigo-700 border-indigo-200'}`}>Target: {group.totalTarget}</span>
