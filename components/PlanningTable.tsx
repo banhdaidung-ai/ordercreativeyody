@@ -1,17 +1,14 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { PlanItem, Department, MasterDataItem, WorkOrder } from '../types';
-import { fetchPlanData, savePlanItem, deletePlanItem, fetchSheetData, getProductionGid, getDesignGid, fetchMasterData, logActivity, fetchSystemLogs } from '../services/dataService';
-import { ArrowLeft, Plus, RefreshCw, Loader2, Save, Trash2, CalendarRange, CheckCircle2, AlertCircle, X, DollarSign, Target, Sigma, BarChart3, Edit3, PieChart, ChevronRight, Lock, Unlock, Clock, Layers, Filter, Trophy, AlertTriangle, Briefcase, Download, FileSpreadsheet } from 'lucide-react';
+import { PlanItem, Department, MasterDataItem, WorkOrder, PlanningDepartmentConfig, DEFAULT_PLANNING_DEPARTMENTS } from '../types';
+import { fetchPlanData, savePlanItem, deletePlanItem, fetchSheetData, getProductionGid, getDesignGid, fetchMasterData, logActivity, fetchSystemLogs, saveMasterDataItem, deleteMasterDataItem } from '../services/dataService';
+import { ArrowLeft, Plus, RefreshCw, Loader2, Save, Trash2, CalendarRange, CheckCircle2, AlertCircle, X, DollarSign, Target, Sigma, BarChart3, Edit3, PieChart, ChevronRight, Lock, Unlock, Clock, Layers, Filter, Trophy, AlertTriangle, Briefcase, Download, FileSpreadsheet, FolderTree } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast, AutoHeightTextarea, AutoNumberInput, MetricCell } from './planning/PlanningUI';
 import { PlanningRow } from './planning/PlanningRow';
 import { PlanningHeader } from './planning/PlanningHeader';
 import { COL_INDEX_WIDTH, COL_CAMPAIGN_WIDTH, STICKY_POS, FORMATS } from './planning/constants';
-
-const DEPARTMENTS = Object.values(Department); 
-const OMNI_MEMBERS = [Department.OMNI_SHOPEE, Department.OMNI_TIKTOK, Department.OMNI_SALE, Department.MKT_ONLINE_YODY, Department.MKT_ONLINE_NEVO];
-const MKT_MEMBERS = [Department.MKT_VUNG, Department.BRAND, Department.TRADE, Department.MKT_CRM];
+import { PlanningDepartmentModal } from './planning/PlanningDepartmentModal';
 
 export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isOwner: boolean; isAdmin: boolean; userEmail: string }> = ({ onBack, userRole, isOwner, isAdmin, userEmail }) => {
     const [data, setData] = useState<PlanItem[]>([]);
@@ -37,18 +34,36 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
     const [systemLogs, setSystemLogs] = useState<any[]>([]);
     const [isLogsLoading, setIsLogsLoading] = useState(false);
     
+    // State cho modal quản lý hạng mục phòng ban
+    const [showDeptModal, setShowDeptModal] = useState(false);
+    
     // NEW: State for expanded groups
-    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-        'MKT': true,
-        'OMNI': true,
-        'BVH': true,
-        'NSHP': true,
-        'Other': true
-    });
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
     const toggleGroup = (dept: string) => {
-        setExpandedGroups(prev => ({ ...prev, [dept]: !prev[dept] }));
+        setExpandedGroups(prev => ({ ...prev, [dept]: prev[dept] === false ? true : false }));
     };
+
+    // Cấu hình phòng ban động từ Master Data (fallback về DEFAULT_PLANNING_DEPARTMENTS)
+    const deptConfigs = useMemo<PlanningDepartmentConfig[]>(() => {
+        const custom = masterData
+            .filter(m => m.listKey === 'PLANNING_DEPARTMENT' && m.value !== '__EMPTY__')
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map(m => ({
+                id: m.id,
+                name: m.value,
+                parent: m.color || undefined,
+                isGroup: m.textColor === 'group',
+                displayName: m.description || undefined,
+                order: m.order ?? 0
+            }));
+        if (custom.length > 0) return custom;
+        return DEFAULT_PLANNING_DEPARTMENTS;
+    }, [masterData]);
+
+    const allDeptNames = useMemo(() => {
+        return deptConfigs.map(d => d.name);
+    }, [deptConfigs]);
 
     // --- LOCK LOGIC ---
     const getVNTimeInfo = useCallback(() => {
@@ -168,8 +183,8 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                 if (d.getUTCMonth() === month && d.getUTCFullYear() === year) {
                     filteredOrders.push(order);
                     let deptRaw = (order.department || '').trim();
-                    if (deptRaw.toLowerCase() === 'mkt online') deptRaw = Department.MKT_ONLINE_YODY;
-                    let deptKey = DEPARTMENTS.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
+                    if (deptRaw.toLowerCase() === 'mkt online') deptRaw = 'MKT Online YODY';
+                    let deptKey = allDeptNames.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
                     if (!result[deptKey]) result[deptKey] = {};
                     const day = d.getUTCDate();
                     result[deptKey][day] = (result[deptKey][day] || 0) + 1;
@@ -213,8 +228,8 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         // 1. Process Actuals
         actualOrders.forEach(order => {
             let deptRaw = (order.department || '').trim();
-            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = Department.MKT_ONLINE_YODY;
-            const deptKey = DEPARTMENTS.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
+            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = 'MKT Online YODY';
+            const deptKey = allDeptNames.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
             const cat = (order.category || 'Khác').trim();
             
             // Map category to Planning formats
@@ -232,8 +247,8 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         // 2. Process Plans
         filteredData.forEach(item => {
             let deptRaw = (item.department || '').trim();
-            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = Department.MKT_ONLINE_YODY;
-            const deptKey = DEPARTMENTS.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
+            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = 'MKT Online YODY';
+            const deptKey = allDeptNames.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
             const fmt = (item.format || 'Khác').trim();
 
             let formatKey = 'Khác';
@@ -249,7 +264,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         });
 
         return stats;
-    }, [actualOrders, filteredData]);
+    }, [actualOrders, filteredData, allDeptNames]);
 
     // --- NEW: CAMPAIGN ANALYSIS LOGIC (UPDATED) ---
     const campaignAnalysis = useMemo(() => {
@@ -268,8 +283,8 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         // 1. Process Plans (Targets)
         filteredData.forEach(item => {
             let deptRaw = (item.department || '').trim();
-            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = Department.MKT_ONLINE_YODY;
-            const deptKey = DEPARTMENTS.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
+            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = 'MKT Online YODY';
+            const deptKey = allDeptNames.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
             const camp = (item.campaign || 'Không tên').trim() || 'Không tên';
             const fmt = (item.format || 'Khác').trim();
             const target = item.totalTarget || 0;
@@ -300,8 +315,8 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         // 2. Process Actuals (Orders)
         actualOrders.forEach(order => {
             let deptRaw = (order.department || '').trim();
-            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = Department.MKT_ONLINE_YODY;
-            const deptKey = DEPARTMENTS.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
+            if (deptRaw.toLowerCase() === 'mkt online') deptRaw = 'MKT Online YODY';
+            const deptKey = allDeptNames.find(d => d.toLowerCase() === deptRaw.toLowerCase()) || 'Other';
             
             // Ensure Department exists in stats even if no Plan
             if (!stats[deptKey]) {
@@ -342,7 +357,7 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         });
         
         return stats;
-    }, [filteredData, actualOrders]);
+    }, [filteredData, actualOrders, allDeptNames]);
 
     const updateItem = useCallback((id: string, field: string, val: any) => {
         if (isLocked) return;
@@ -565,88 +580,162 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         return () => clearTimeout(timeout);
     }, [pendingUpdates, data]);
 
+    // Lưu cấu hình phòng ban và tự động cập nhật các dòng kế hoạch bị đổi tên
+    const handleSaveDepartments = async (newConfigs: PlanningDepartmentConfig[], renameMap: Record<string, string>) => {
+        setIsSaving(true);
+        try {
+            const latestMaster = await fetchMasterData();
+            const currentIds = new Set(newConfigs.map(c => c.id));
+            const toDelete = latestMaster.filter(m => m.listKey === 'PLANNING_DEPARTMENT' && !currentIds.has(m.id));
+            
+            if (toDelete.length > 0) {
+                await Promise.all(toDelete.map(o => deleteMasterDataItem(o.id)));
+            }
+
+            await Promise.all(newConfigs.map((c, idx) => saveMasterDataItem({
+                id: c.id,
+                listKey: 'PLANNING_DEPARTMENT',
+                value: c.name,
+                color: c.parent || '',
+                textColor: c.isGroup ? 'group' : 'department',
+                description: c.displayName || '',
+                order: idx
+            })));
+
+            // Nếu có phòng ban đổi tên, tự động cập nhật tất cả PlanItem liên quan
+            const renameEntries = Object.entries(renameMap);
+            if (renameEntries.length > 0) {
+                const affectedItems: PlanItem[] = [];
+                const updatedData = data.map(item => {
+                    const oldName = (item.department || '').trim();
+                    const matchingRename = renameEntries.find(([oldN]) => oldN.toLowerCase() === oldName.toLowerCase());
+                    if (matchingRename) {
+                        const updated = { ...item, department: matchingRename[1] };
+                        affectedItems.push(updated);
+                        return updated;
+                    }
+                    return item;
+                });
+
+                if (affectedItems.length > 0) {
+                    setData(updatedData);
+                    await Promise.all(affectedItems.map(item => savePlanItem(item)));
+                }
+            }
+
+            // Tải lại master data để đồng bộ
+            const updatedMaster = await fetchMasterData();
+            setMasterData(updatedMaster);
+            await logActivity('UPDATE_PLANNING_DEPARTMENTS', `Updated ${newConfigs.length} depts`, `User ${userEmail} updated planning departments`, 'PLANNING');
+            setToast({ type: 'success', message: 'Đã lưu cấu hình phòng ban thành công!' });
+        } catch (err: any) {
+            console.error("Save departments error:", err);
+            setToast({ type: 'error', message: err.message || 'Lỗi lưu cấu hình phòng ban' });
+            throw err;
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const topLevelDepts = useMemo(() => {
+        return deptConfigs.filter(d => d.isGroup || !d.parent).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }, [deptConfigs]);
+
     const displayOrder = useMemo(() => {
-        const rest = DEPARTMENTS.filter(d => !MKT_MEMBERS.includes(d) && !OMNI_MEMBERS.includes(d));
-        return ['MKT', 'OMNI', ...rest, 'Other'];
-    }, []);
+        const keys = topLevelDepts.map(d => d.name);
+        if (!keys.includes('Other')) keys.push('Other');
+        return keys;
+    }, [topLevelDepts]);
 
     const groupedData = useMemo(() => {
-        const groups: Record<string, { items: PlanItem[]; totalCost: number; totalTarget: number; totalActual: number; isOMNI?: boolean; isMKT?: boolean }> = {};
-        
-        displayOrder.forEach(key => {
-            groups[key] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0, isOMNI: key === 'OMNI', isMKT: key === 'MKT' };
-        });
-
-        OMNI_MEMBERS.forEach(member => {
-            groups[member] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0 };
-        });
-
-        MKT_MEMBERS.forEach(member => {
-            groups[member] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0 };
-        });
-
-        filteredData.forEach(item => {
-            let deptKey = item.department;
-            if (OMNI_MEMBERS.includes(deptKey as Department)) {
-                if (groups[deptKey]) {
-                    groups[deptKey].items.push(item);
-                    groups[deptKey].totalCost += (item.estimatedCost || 0);
-                    groups[deptKey].totalTarget += (item.totalTarget || 0);
-                }
-                if (groups['OMNI']) {
-                    groups['OMNI'].totalCost += (item.estimatedCost || 0);
-                    groups['OMNI'].totalTarget += (item.totalTarget || 0);
-                }
-            } else if (MKT_MEMBERS.includes(deptKey as Department)) {
-                if (groups[deptKey]) {
-                    groups[deptKey].items.push(item);
-                    groups[deptKey].totalCost += (item.estimatedCost || 0);
-                    groups[deptKey].totalTarget += (item.totalTarget || 0);
-                }
-                if (groups['MKT']) {
-                    groups['MKT'].totalCost += (item.estimatedCost || 0);
-                    groups['MKT'].totalTarget += (item.totalTarget || 0);
-                }
-            } else {
-                const targetKey = displayOrder.includes(deptKey) ? deptKey : 'Other';
-                if (!groups[targetKey]) groups[targetKey] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0 };
-                groups[targetKey].items.push(item);
-                groups[targetKey].totalCost += (item.estimatedCost || 0);
-                groups[targetKey].totalTarget += (item.totalTarget || 0);
+        const groupChildrenMap: Record<string, string[]> = {};
+        topLevelDepts.forEach(item => {
+            if (item.isGroup) {
+                const children = deptConfigs
+                    .filter(d => !d.isGroup && d.parent?.toLowerCase() === item.name.toLowerCase())
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                    .map(d => d.name);
+                groupChildrenMap[item.name] = children;
             }
         });
 
+        const groups: Record<string, { 
+            items: PlanItem[]; 
+            totalCost: number; 
+            totalTarget: number; 
+            totalActual: number; 
+            isParent?: boolean; 
+            isChild?: boolean; 
+            parentName?: string;
+        }> = {};
+
+        // Khởi tạo các nhóm cha và phòng ban độc lập
+        topLevelDepts.forEach(t => {
+            groups[t.name] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0, isParent: t.isGroup };
+            if (t.isGroup && groupChildrenMap[t.name]) {
+                groupChildrenMap[t.name].forEach(childName => {
+                    groups[childName] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0, isChild: true, parentName: t.name };
+                });
+            }
+        });
+        if (!groups['Other']) groups['Other'] = { items: [], totalCost: 0, totalTarget: 0, totalActual: 0 };
+
+        // Phân loại các dòng kế hoạch vào phòng ban tương ứng
+        filteredData.forEach(item => {
+            const deptKey = (item.department || '').trim();
+            let matchedKey = Object.keys(groups).find(k => k.toLowerCase() === deptKey.toLowerCase());
+            if (!matchedKey) matchedKey = 'Other';
+
+            if (groups[matchedKey]) {
+                groups[matchedKey].items.push(item);
+                groups[matchedKey].totalCost += (item.estimatedCost || 0);
+                groups[matchedKey].totalTarget += (item.totalTarget || 0);
+
+                // Nếu là phòng ban con, cộng dồn lên nhóm cha
+                const pName = groups[matchedKey].parentName;
+                if (pName && groups[pName]) {
+                    groups[pName].totalCost += (item.estimatedCost || 0);
+                    groups[pName].totalTarget += (item.totalTarget || 0);
+                }
+            }
+        });
+
+        // Tính toán thực tế trong chế độ báo cáo
         if (viewMode === 'report') {
-            Object.keys(groups).forEach(dept => {
-                if (dept === 'OMNI') {
-                    OMNI_MEMBERS.forEach(member => {
-                        const dailyActuals = actualData[member] || {};
-                        groups['OMNI'].totalActual += (Object.values(dailyActuals) as number[]).reduce((a, b) => a + b, 0);
+            Object.keys(groups).forEach(key => {
+                if (groups[key].isParent) {
+                    const children = groupChildrenMap[key] || [];
+                    let sumActual = 0;
+                    children.forEach(c => {
+                        const dailyActuals = actualData[c] || {};
+                        sumActual += (Object.values(dailyActuals) as number[]).reduce((a, b) => a + b, 0);
                     });
+                    groups[key].totalActual = sumActual;
                 } else {
-                    const dailyActuals = actualData[dept] || {};
-                    groups[dept].totalActual = (Object.values(dailyActuals) as number[]).reduce((a, b) => a + b, 0);
+                    const dailyActuals = actualData[key] || {};
+                    groups[key].totalActual = (Object.values(dailyActuals) as number[]).reduce((a, b) => a + b, 0);
                 }
             });
         }
 
+        // Tạo mảng thứ tự hiển thị: Nhóm cha đi kèm các phòng ban con ngay sau nó
         const finalOrderedGroups: Array<[string, any]> = [];
-        displayOrder.forEach(key => {
-            finalOrderedGroups.push([key, groups[key]]);
-            if (key === 'OMNI') {
-                OMNI_MEMBERS.forEach(member => {
-                    if (groups[member]) finalOrderedGroups.push([member, groups[member]]);
-                });
-            }
-            if (key === 'MKT') {
-                MKT_MEMBERS.forEach(member => {
-                    if (groups[member]) finalOrderedGroups.push([member, groups[member]]);
+        topLevelDepts.forEach(t => {
+            finalOrderedGroups.push([t.name, groups[t.name]]);
+            if (t.isGroup && groupChildrenMap[t.name]) {
+                groupChildrenMap[t.name].forEach(childName => {
+                    if (groups[childName]) {
+                        finalOrderedGroups.push([childName, groups[childName]]);
+                    }
                 });
             }
         });
+        if (groups['Other'] && groups['Other'].items.length > 0) {
+            finalOrderedGroups.push(['Other', groups['Other']]);
+        }
 
         return finalOrderedGroups;
-    }, [filteredData, actualData, viewMode, displayOrder]);
+    }, [deptConfigs, topLevelDepts, filteredData, actualData, viewMode]);
 
     const grandTotals = useMemo(() => {
         const totals = {
@@ -682,28 +771,36 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
         return { label: dayNames[dayOfWeek], isWeekend: dayOfWeek === 0 || dayOfWeek === 6 };
     };
 
-    const getDeptNumbering = (dept: string) => {
-        if (OMNI_MEMBERS.includes(dept as Department)) {
-            const omniIndex = displayOrder.indexOf('OMNI') + 1;
-            const childIndex = OMNI_MEMBERS.indexOf(dept as Department) + 1;
-            return `${omniIndex}.${childIndex}.`;
-        }
-        if (MKT_MEMBERS.includes(dept as Department)) {
-            const mktIndex = displayOrder.indexOf('MKT') + 1;
-            const childIndex = MKT_MEMBERS.indexOf(dept as Department) + 1;
-            return `${mktIndex}.${childIndex}.`;
-        }
-        const idx = displayOrder.indexOf(dept);
-        if (idx === -1) return '';
-        return `${idx + 1}.`;
-    };
+    const getDeptNumbering = useCallback((dept: string) => {
+        const found = deptConfigs.find(d => d.name.toLowerCase() === dept.toLowerCase());
+        if (!found) return '';
 
-    const getDeptDisplayName = (dept: string) => {
-        if (dept === Department.MKT_ONLINE_NEVO || dept === 'MKT Online NEVO') {
+        if (found.parent) {
+            const pIdx = topLevelDepts.findIndex(t => t.name.toLowerCase() === found.parent?.toLowerCase());
+            if (pIdx !== -1) {
+                const siblings = deptConfigs
+                    .filter(d => !d.isGroup && d.parent?.toLowerCase() === found.parent?.toLowerCase())
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                const cIdx = siblings.findIndex(s => s.name.toLowerCase() === dept.toLowerCase());
+                return `${pIdx + 1}.${cIdx + 1}.`;
+            }
+        }
+
+        const tIdx = topLevelDepts.findIndex(t => t.name.toLowerCase() === dept.toLowerCase());
+        if (tIdx !== -1) {
+            return `${tIdx + 1}.`;
+        }
+        return '';
+    }, [deptConfigs, topLevelDepts]);
+
+    const getDeptDisplayName = useCallback((dept: string) => {
+        const found = deptConfigs.find(d => d.name.toLowerCase() === dept.toLowerCase());
+        if (found?.displayName) return found.displayName;
+        if (dept.toLowerCase() === 'mkt online nevo') {
             return 'MKT ONLINE WEB';
         }
         return dept;
-    };
+    }, [deptConfigs]);
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 relative">
@@ -783,6 +880,16 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                         >
                             <FileSpreadsheet size={14}/>
                             <span className="hidden sm:inline">Xuất Excel</span>
+                        </button>
+
+                        <button 
+                            onClick={() => setShowDeptModal(true)}
+                            disabled={isLocked && !isAdmin}
+                            className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 text-gray-600 text-xs font-bold transition-all shadow-sm ${isLocked && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title="Quản lý hạng mục phòng ban"
+                        >
+                            <FolderTree size={14} className="text-indigo-600"/>
+                            <span className="hidden sm:inline">Phòng ban</span>
                         </button>
 
                         <button 
@@ -1030,33 +1137,33 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {groupedData.map(([dept, group]) => {
-                                        const isOMNIParent = dept === 'OMNI';
-                                        const isOMNIChild = OMNI_MEMBERS.includes(dept as Department);
+                                        const isParent = Boolean(group.isParent);
+                                        const isChild = Boolean(group.isChild);
 
                                         return (
                                             <React.Fragment key={dept}>
-                                                <tr className={`border-y sticky z-30 ${isOMNIParent ? 'bg-slate-800 text-white border-slate-700' : isOMNIChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}>
-                                                    <td className={`sticky top-[89px] p-2 border-r font-black text-left z-50 uppercase shadow-sm ${isOMNIParent ? 'bg-slate-800 border-slate-700' : isOMNIChild ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-slate-100 border-slate-300 text-slate-800'}`} style={{ left: 0 }} colSpan={2}>
-                                                        <div className={`flex items-center justify-between ${isOMNIChild ? 'pl-8' : 'pl-2'}`}>
+                                                <tr className={`border-y sticky z-30 ${isParent ? 'bg-slate-800 text-white border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}>
+                                                    <td className={`sticky top-[89px] p-2 border-r font-black text-left z-50 uppercase shadow-sm ${isParent ? 'bg-slate-800 border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-slate-100 border-slate-300 text-slate-800'}`} style={{ left: 0 }} colSpan={2}>
+                                                        <div className={`flex items-center justify-between ${isChild ? 'pl-8' : 'pl-2'}`}>
                                                             <span className="flex items-center gap-2">
-                                                                {isOMNIChild && <ChevronRight size={14} className="text-indigo-400" />}
+                                                                {isChild && <ChevronRight size={14} className="text-indigo-400" />}
                                                                 {getDeptNumbering(dept)} {getDeptDisplayName(dept)}
                                                             </span>
                                                             <div className="flex gap-4 text-[10px] font-normal normal-case">
-                                                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isOMNIParent ? 'bg-slate-700 text-white border-slate-600' : 'bg-purple-100 text-purple-700 border-purple-200'}`}>Thực tế: {group.totalActual}</span>
-                                                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isOMNIParent ? 'bg-indigo-900 text-indigo-100 border-indigo-800' : 'bg-indigo-100 text-indigo-700 border-indigo-200'}`}>Target: {group.totalTarget}</span>
+                                                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isParent ? 'bg-slate-700 text-white border-slate-600' : 'bg-purple-100 text-purple-700 border-purple-200'}`}>Thực tế: {group.totalActual}</span>
+                                                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isParent ? 'bg-indigo-900 text-indigo-100 border-indigo-800' : 'bg-indigo-100 text-indigo-700 border-indigo-200'}`}>Target: {group.totalTarget}</span>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className={`sticky top-[89px] border-r z-30 ${isOMNIParent ? 'bg-slate-800 border-slate-700' : isOMNIChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
-                                                    <td className={`sticky top-[89px] p-2 text-center font-bold border-r z-30 ${isOMNIParent ? 'bg-indigo-900/50 border-slate-700 text-indigo-200' : 'text-indigo-700 bg-indigo-100/50 border-indigo-200'}`}>{group.totalTarget}</td>
-                                                    <td className={`sticky top-[89px] border-r z-30 ${isOMNIParent ? 'bg-slate-800 border-slate-700' : isOMNIChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
-                                                    <td className={`sticky top-[89px] border-r z-30 ${isOMNIParent ? 'bg-slate-800 border-slate-700' : isOMNIChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
-                                                    <td className={`sticky top-[89px] p-2 text-right font-black border-r z-30 ${isOMNIParent ? 'bg-amber-900/40 border-slate-700 text-amber-200' : 'text-amber-700 bg-amber-50 border-indigo-200'}`}>{group.totalCost.toLocaleString('vi-VN')}</td>
-                                                    <td colSpan={32} className={`sticky top-[89px] z-30 ${isOMNIParent ? 'bg-slate-800' : isOMNIChild ? 'bg-indigo-50' : 'bg-slate-100'}`}>
+                                                    <td className={`sticky top-[89px] border-r z-30 ${isParent ? 'bg-slate-800 border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
+                                                    <td className={`sticky top-[89px] p-2 text-center font-bold border-r z-30 ${isParent ? 'bg-indigo-900/50 border-slate-700 text-indigo-200' : 'text-indigo-700 bg-indigo-100/50 border-indigo-200'}`}>{group.totalTarget}</td>
+                                                    <td className={`sticky top-[89px] border-r z-30 ${isParent ? 'bg-slate-800 border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
+                                                    <td className={`sticky top-[89px] border-r z-30 ${isParent ? 'bg-slate-800 border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}></td>
+                                                    <td className={`sticky top-[89px] p-2 text-right font-black border-r z-30 ${isParent ? 'bg-amber-900/40 border-slate-700 text-amber-200' : 'text-amber-700 bg-amber-50 border-indigo-200'}`}>{group.totalCost.toLocaleString('vi-VN')}</td>
+                                                    <td colSpan={32} className={`sticky top-[89px] z-30 ${isParent ? 'bg-slate-800' : isChild ? 'bg-indigo-50' : 'bg-slate-100'}`}>
                                                     </td>
                                                 </tr>
-                                                {!isOMNIParent && group.items.map((item: PlanItem, idx: number) => (
+                                                {!isParent && group.items.map((item: PlanItem, idx: number) => (
                                                     <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
                                                         <td className="p-2 border-r border-slate-100 text-center text-slate-400 sticky bg-white group-hover:bg-slate-50 z-10" style={{ left: STICKY_POS.index }}>{idx + 1}</td>
                                                         <td className="p-0 border-r border-slate-100 sticky bg-white group-hover:bg-slate-50 z-10 align-top" style={{ left: STICKY_POS.campaign }}>
@@ -1110,24 +1217,35 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                             />
                             <tbody className="divide-y divide-gray-200">
                                 {groupedData.map(([dept, group]) => {
-                                    const isParent = dept === 'OMNI' || dept === 'MKT';
-                                    const isChild = OMNI_MEMBERS.includes(dept as Department) || MKT_MEMBERS.includes(dept as Department);
+                                    const isParent = Boolean(group.isParent);
+                                    const isChild = Boolean(group.isChild);
                                     const isExpanded = expandedGroups[dept] !== false;
 
                                     // Determine parent for child
-                                    const parentDept = OMNI_MEMBERS.includes(dept as Department) ? 'OMNI' : MKT_MEMBERS.includes(dept as Department) ? 'MKT' : null;
+                                    const parentDept = group.parentName;
                                     if (parentDept && expandedGroups[parentDept] === false) return null;
 
                                     return (
                                         <React.Fragment key={dept}>
-                                            <tr className={`border-y sticky z-30 ${isParent ? 'bg-slate-800 text-white border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}>
+                                            <tr className={`border-y sticky z-30 group/dept-header ${isParent ? 'bg-slate-800 text-white border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-100 border-slate-200'}`}>
                                                 <td className={`sticky top-[89px] p-2 border-r font-black text-left z-50 uppercase shadow-sm ${isParent ? 'bg-slate-800 border-slate-700' : isChild ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-slate-100 border-slate-300 text-slate-800'}`} style={{ left: 0 }} colSpan={2}>
                                                     <div className={`flex items-center justify-between ${isChild ? 'pl-8' : 'pl-2'}`}>
-                                                        <span className="flex items-center gap-2 cursor-pointer" onClick={() => isParent && toggleGroup(dept)}>
-                                                            {isParent && (expandedGroups[dept] ? <ChevronRight size={14} className="rotate-90 transition-transform" /> : <ChevronRight size={14} className="transition-transform" />)}
-                                                            {isChild && <ChevronRight size={14} className="text-indigo-400" />}
-                                                            {getDeptNumbering(dept)} {getDeptDisplayName(dept)}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="flex items-center gap-2 cursor-pointer select-none" onClick={() => isParent && toggleGroup(dept)}>
+                                                                {isParent && (expandedGroups[dept] === false ? <ChevronRight size={14} className="transition-transform" /> : <ChevronRight size={14} className="rotate-90 transition-transform" />)}
+                                                                {isChild && <ChevronRight size={14} className="text-indigo-400" />}
+                                                                {getDeptNumbering(dept)} {getDeptDisplayName(dept)}
+                                                            </span>
+                                                            {(!isLocked || isAdmin) && (
+                                                                <button 
+                                                                    onClick={() => setShowDeptModal(true)} 
+                                                                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100/50 rounded transition-colors opacity-0 group-hover/dept-header:opacity-100"
+                                                                    title="Chỉnh sửa cấu hình phòng ban"
+                                                                >
+                                                                    <Edit3 size={12}/>
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         <div className="flex gap-4 text-[10px] font-normal normal-case">
                                                             <span className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold border ${isParent ? 'bg-indigo-900 text-indigo-100 border-indigo-800' : 'bg-indigo-100 text-indigo-700 border-indigo-200'}`}>Target: {group.totalTarget}</span>
                                                         </div>
@@ -1225,6 +1343,15 @@ export const PlanningTable: React.FC<{ onBack: () => void; userRole: string; isO
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Modal Quản lý Hạng mục Phòng ban */}
+            {showDeptModal && (
+                <PlanningDepartmentModal 
+                    departments={deptConfigs} 
+                    planItems={data} 
+                    onSave={handleSaveDepartments} 
+                    onClose={() => setShowDeptModal(false)} 
+                />
             )}
         </div>
     );

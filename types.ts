@@ -219,6 +219,38 @@ export interface PlanItem {
   [key: string]: any;
 }
 
+// --- PLANNING DEPARTMENT CONFIG INTERFACE ---
+export interface PlanningDepartmentConfig {
+  id: string;
+  name: string;        // e.g. "MKT", "OMNI", "Trade", "Brand", "BVH"...
+  parent?: string;     // e.g. "MKT" (for Trade), "OMNI" (for OMNI/SHOPEE), or ""/undefined for top-level
+  isGroup: boolean;    // true if it's a parent group like MKT, OMNI
+  displayName?: string;// e.g. "MKT ONLINE WEB" for "MKT Online NEVO"
+  order: number;       // Display order
+}
+
+export const DEFAULT_PLANNING_DEPARTMENTS: PlanningDepartmentConfig[] = [
+  // 1. Nhóm MKT
+  { id: 'pdept-mkt', name: 'MKT', isGroup: true, order: 0 },
+  { id: 'pdept-mkt-vung', name: Department.MKT_VUNG, parent: 'MKT', isGroup: false, order: 1 },
+  { id: 'pdept-brand', name: Department.BRAND, parent: 'MKT', isGroup: false, order: 2 },
+  { id: 'pdept-trade', name: Department.TRADE, parent: 'MKT', isGroup: false, order: 3 },
+  { id: 'pdept-mkt-crm', name: Department.MKT_CRM, parent: 'MKT', isGroup: false, order: 4 },
+
+  // 2. Nhóm OMNI
+  { id: 'pdept-omni', name: 'OMNI', isGroup: true, order: 5 },
+  { id: 'pdept-omni-shopee', name: Department.OMNI_SHOPEE, parent: 'OMNI', isGroup: false, order: 6 },
+  { id: 'pdept-omni-tiktok', name: Department.OMNI_TIKTOK, parent: 'OMNI', isGroup: false, order: 7 },
+  { id: 'pdept-omni-sale', name: Department.OMNI_SALE, parent: 'OMNI', isGroup: false, order: 8 },
+  { id: 'pdept-mkt-online-yody', name: Department.MKT_ONLINE_YODY, parent: 'OMNI', isGroup: false, order: 9 },
+  { id: 'pdept-mkt-online-nevo', name: Department.MKT_ONLINE_NEVO, parent: 'OMNI', isGroup: false, displayName: 'MKT ONLINE WEB', order: 10 },
+
+  // 3. Các phòng ban độc lập
+  { id: 'pdept-bvh', name: Department.BVH, isGroup: false, order: 11 },
+  { id: 'pdept-nshp', name: Department.NSHP, isGroup: false, order: 12 },
+  { id: 'pdept-other', name: Department.PHONG_BAN_KHAC, isGroup: false, order: 13 },
+];
+
 // --- MASTER DATA INTERFACE ---
 export interface MasterDataItem {
   id: string;
