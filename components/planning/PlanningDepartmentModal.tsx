@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PlanningDepartmentConfig, PlanItem } from '../../types';
 import { X, Plus, Trash2, Edit3, FolderTree, Folder, Briefcase, ChevronUp, ChevronDown, Check, AlertCircle, ArrowRight } from 'lucide-react';
 
@@ -24,6 +24,10 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
     const [renameMap, setRenameMap] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    // Refs for auto-scroll and focus
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
 
     // Form state for Add/Edit
     const [editingDept, setEditingDept] = useState<PlanningDepartmentConfig | null>(null);
@@ -61,6 +65,11 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
         });
         setErrorMsg(null);
         setIsAdding(true);
+
+        setTimeout(() => {
+            scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            nameInputRef.current?.focus();
+        }, 50);
     };
 
     const handleOpenEdit = (dept: PlanningDepartmentConfig) => {
@@ -73,6 +82,12 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
             displayName: dept.displayName || ''
         });
         setErrorMsg(null);
+
+        setTimeout(() => {
+            scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            nameInputRef.current?.focus();
+            nameInputRef.current?.select();
+        }, 50);
     };
 
     const handleSaveForm = () => {
@@ -214,7 +229,7 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
                 )}
 
                 {/* Body Content */}
-                <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                <div ref={scrollContainerRef} className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
                     {/* Add / Edit Form Box */}
                     {(isAdding || editingDept) ? (
                         <div className="p-5 rounded-2xl border bg-indigo-50/50 border-indigo-200 space-y-4 animate-in fade-in">
@@ -237,6 +252,7 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
                                         Tên {formData.isGroup ? 'Nhóm cha' : 'Phòng ban'} <span className="text-red-500">*</span>
                                     </label>
                                     <input 
+                                        ref={nameInputRef}
                                         type="text" 
                                         value={formData.name} 
                                         onChange={e => setFormData({ ...formData, name: e.target.value })} 
@@ -320,11 +336,20 @@ export const PlanningDepartmentModal: React.FC<PlanningDepartmentModalProps> = (
                             const isGroup = dept.isGroup;
                             const isChild = !isGroup && Boolean(dept.parent);
                             const itemsCount = countPlanItems(dept.name);
+                            const isCurrentEditing = editingDept?.id === dept.id;
 
                             return (
                                 <div 
                                     key={dept.id} 
-                                    className={`flex items-center justify-between p-3 transition-colors ${isGroup ? 'bg-slate-50 font-black' : isChild ? 'pl-8 hover:bg-indigo-50/40' : 'hover:bg-gray-50'}`}
+                                    className={`flex items-center justify-between p-3 transition-all ${
+                                        isCurrentEditing 
+                                            ? 'bg-indigo-50/80 ring-2 ring-indigo-500/80 ring-inset shadow-sm' 
+                                            : isGroup 
+                                                ? 'bg-slate-50 font-black' 
+                                                : isChild 
+                                                    ? 'pl-8 hover:bg-indigo-50/40' 
+                                                    : 'hover:bg-gray-50'
+                                    }`}
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         {/* Sort buttons */}
